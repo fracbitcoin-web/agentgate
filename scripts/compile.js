@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const solc = require("solc");
+const { ethers } = require("ethers");
 
 function compile() {
   const sources = {};
@@ -24,13 +26,19 @@ function compile() {
   }
   const dir = path.join(__dirname, "..", "artifacts");
   fs.mkdirSync(dir, { recursive: true });
+  const solcVersion = solc.version();
   for (const [file, contracts] of Object.entries(out.contracts)) {
+    // Provenance: bind every artifact to the exact source bytes and compiler
+    // that produced it, so deploy.js can refuse a stale/substituted artifact.
+    const sourceSha256 = crypto.createHash("sha256").update(sources[file].content, "utf8").digest("hex");
     for (const [name, c] of Object.entries(contracts)) {
+      const bytecode = "0x" + c.evm.bytecode.object;
+      const bytecodeHash = ethers.keccak256(bytecode);
       fs.writeFileSync(
         path.join(dir, `${name}.json`),
-        JSON.stringify({ abi: c.abi, bytecode: "0x" + c.evm.bytecode.object }, null, 2)
+        JSON.stringify({ abi: c.abi, bytecode, sourceSha256, solcVersion, bytecodeHash }, null, 2)
       );
-      console.log(`compiled ${file}:${name} (bytecode ${(c.evm.bytecode.object.length / 2)} bytes)`);
+      console.log(`compiled ${file}:${name} (bytecode ${(c.evm.bytecode.object.length / 2)} bytes, bytecodeHash ${bytecodeHash})`);
     }
   }
 }

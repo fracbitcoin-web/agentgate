@@ -93,6 +93,16 @@ async function expectRevert(promise) {
   await (await gate.connect(deployer).setAgentId(await mock.getAddress(), { gasLimit: 500000 })).wait();
   ok("setAgentId owner-only");
 
+  // setAgentId validation: zero address, EOA (no code) and a contract without
+  // balanceOf all revert; the pointer stays on the valid target; a gate
+  // constructed with a bad pointer cannot be deployed at all
+  await expectRevert(gate.connect(deployer).setAgentId(ethers.ZeroAddress));
+  await expectRevert(gate.connect(deployer).setAgentId(await carol.getAddress()));
+  await expectRevert(gate.connect(deployer).setAgentId(await gate.getAddress()));
+  assert.equal((await gate.agentId()).toLowerCase(), (await mock.getAddress()).toLowerCase());
+  await expectRevert(new ethers.ContractFactory(gateArt.abi, gateArt.bytecode, deployer).deploy(ethers.ZeroAddress));
+  ok("setAgentId rejects zero/EOA/non-conforming targets");
+
   console.log(`\nALL ${passed} TEST GROUPS PASSED`);
 }
 

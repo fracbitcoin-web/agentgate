@@ -52,8 +52,23 @@ contract AgentGate {
     }
 
     constructor(address agentId_) {
-        agentId = IAgentID(agentId_);
+        _setAgentId(agentId_);
         owner = msg.sender;
+    }
+
+    /// @dev Shared validation for the Agent ID pointer, used by both the
+    ///      constructor and setAgentId: the target must be a deployed
+    ///      contract that actually answers IAgentID.balanceOf, so a mistyped
+    ///      address can never silently freeze every gated write. The probe
+    ///      uses address(0x1) (never address(0), which ERC-721 balanceOf
+    ///      legitimately rejects) and only checks that the call succeeds.
+    function _setAgentId(address agentId_) internal {
+        require(agentId_ != address(0), "Zero address");
+        require(agentId_.code.length > 0, "Agent ID not a contract");
+        try IAgentID(agentId_).balanceOf(address(0x1)) returns (uint256) {} catch {
+            revert("Agent ID lacks balanceOf");
+        }
+        agentId = IAgentID(agentId_);
     }
 
     function _touch(address a) internal {
@@ -125,7 +140,7 @@ contract AgentGate {
     ///         in the README. Cannot touch user data or funds (none are held).
     function setAgentId(address agentId_) external {
         require(msg.sender == owner, "Not owner");
-        agentId = IAgentID(agentId_);
+        _setAgentId(agentId_);
         emit AgentIdUpdated(agentId_);
     }
 }

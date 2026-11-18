@@ -1,6 +1,10 @@
 // AgentGate front end — reads are public via BSC RPC; writes need a wallet
 // holding an Agent ID. Set GATE_ADDRESS after deployment.
 const GATE_ADDRESS = null; // e.g. "0x..." after mainnet deploy
+// Set to true only by scripts/deploy.js, together with GATE_ADDRESS, once a
+// real deployment has been recorded in deploy/deployment.json. The
+// "(verified on BscScan)" label is shown only while this is true.
+const GATE_DEPLOYED = false;
 const AGENT_ID = "0x60b9262456de011f7d15a54cdd8c48baaa8b022f";
 const BSC_RPC = "https://bsc-dataseed.binance.org";
 const BSC_CHAIN_ID = 56n;
@@ -19,6 +23,7 @@ const GATE_ABI = [
   "function checkIn()",
   "function createList(string name) returns (uint256)",
   "function joinList(uint256 id)",
+  "function closeList(uint256 id)",
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -41,7 +46,8 @@ async function loadPublic() {
     $("statCheckins").textContent = checkins.toString();
     $("statLists").textContent = lists.toString();
     $("contractLink").innerHTML =
-      `<a href="https://bscscan.com/address/${GATE_ADDRESS}" target="_blank" rel="noopener">${short(GATE_ADDRESS)}</a> (verified on BscScan)`;
+      `<a href="https://bscscan.com/address/${GATE_ADDRESS}" target="_blank" rel="noopener">${short(GATE_ADDRESS)}</a>` +
+      (GATE_DEPLOYED ? " (verified on BscScan)" : "");
     await renderLists(Number(lists));
   } catch (e) { console.error(e); }
 }
@@ -64,6 +70,13 @@ async function renderLists(count) {
     btn.disabled = !account || joined || !open;
     btn.onclick = () => joinList(i);
     row.appendChild(btn);
+    if (account && creator.toLowerCase() === account.toLowerCase() && open) {
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "ghost";
+      closeBtn.textContent = "Close";
+      closeBtn.onclick = () => closeList(i);
+      row.appendChild(closeBtn);
+    }
     box.appendChild(row);
   }
   if (count === 0) box.innerHTML = '<p class="small">No lists yet — be the first Agent ID holder to create one.</p>';
@@ -100,6 +113,8 @@ async function ensureBsc(eth) {
   try {
     await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x38" }] });
   } catch (e) {
+    if (e.code === 4001) throw e; // user rejected the switch — do not prompt again
+    if (e.code !== 4902) throw e; // only "chain not added" falls through to add
     await eth.request({
       method: "wallet_addEthereumChain",
       params: [{ chainId: "0x38", chainName: "BNB Smart Chain", rpcUrls: [BSC_RPC],
@@ -107,6 +122,24 @@ async function ensureBsc(eth) {
         blockExplorerUrls: ["https://bscscan.com"] }],
     });
   }
+  // Neither a resolved switch nor a resolved add proves the wallet is on BSC
+  // now — re-read the chain before proceeding.
+  const after = await eth.request({ method: "eth_chainId" });
+  if (BigInt(after) !== BSC_CHAIN_ID) throw new Error("Wallet is not on BNB Smart Chain");
+}
+
+function invalidateSession() {
+  signer = null; account = null; gateWrite = null;
+  $("connectBtn").textContent = "Connect wallet";
+  $("checkinBtn").disabled = true;
+  $("createListBtn").disabled = true;
+}
+
+// The cached session is bound at connect time; if the wallet-side account or
+// chain changes afterwards, drop it and force a reconnect + re-render.
+if (window.ethereum) {
+  window.ethereum.on("accountsChanged", () => { invalidateSession(); msg("Wallet account changed — please reconnect."); loadPublic(); });
+  window.ethereum.on("chainChanged", () => { invalidateSession(); msg("Network changed — please reconnect."); loadPublic(); });
 }
 
 $("connectBtn").onclick = async () => {
@@ -127,6 +160,15 @@ $("connectBtn").onclick = async () => {
 
 async function sendTx(fn, doneText) {
   try {
+    if (!signer || !gateWrite) throw new Error("Wallet not connected");
+    // Re-validate the session immediately before signing: the wallet-side
+    // account or chain may have changed since connect.
+    await ensureBsc(window.ethereum);
+    const current = await signer.getAddress();
+    if (current.toLowerCase() !== account.toLowerCase()) {
+      invalidateSession();
+      throw new Error("Wallet account changed — please reconnect.");
+    }
     msg("Confirm the transaction in your wallet…");
     const tx = await fn();
     msg("Transaction sent — waiting for confirmation…");
@@ -143,5 +185,6 @@ $("createListBtn").onclick = () => {
   if (gateWrite) sendTx(() => gateWrite.createList(name), "List created!");
 };
 function joinList(i) { if (gateWrite) sendTx(() => gateWrite.joinList(i), "Joined list #" + i + "!"); }
+function closeList(i) { if (gateWrite) sendTx(() => gateWrite.closeList(i), "List #" + i + " closed!"); }
 
 loadPublic();
