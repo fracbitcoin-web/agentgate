@@ -1,0 +1,23 @@
+{
+  "name": "agentgate",
+  "version": "1.0.0",
+  "description": "AgentGate \u2014 daily check-in desk and allowlists for Agent ID (name.ai) holders on BNB Chain",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "compile": "node scripts/compile.js",
+    "test": "node scripts/compile.js && node test/test.js",
+    "deploy": "node scripts/deploy.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "ganache": "^7.9.2",
+    "solc": "^0.8.26"
+  }
+}

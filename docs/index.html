@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentGate — The Front Desk for Agent ID Holders</title>
+<meta name="description" content="A daily check-in desk and allowlist registry on BNB Chain, open only to Agent ID (name.ai) holders.">
+<style>
+  :root { --bg:#0b0e14; --card:#141926; --line:#232b3d; --txt:#e8ecf4; --mut:#93a0b8; --acc:#f0b90b; --ok:#3ecf8e; --bad:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--txt); }
+  .wrap { max-width:860px; margin:0 auto; padding:24px 16px 64px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:28px; margin:0; } h1 .g { color:var(--acc); }
+  .tag { color:var(--mut); margin:6px 0 0; }
+  button { background:var(--acc); color:#111; border:0; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.ghost { background:transparent; color:var(--txt); border:1px solid var(--line); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:20px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .card .n { font-size:26px; font-weight:800; }
+  .card .l { color:var(--mut); font-size:13px; margin-top:2px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  input[type=text] { flex:1; min-width:200px; background:#0d1119; border:1px solid var(--line); color:var(--txt); border-radius:10px; padding:10px 12px; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; border:1px solid var(--line); color:var(--mut); }
+  .pill.ok { color:var(--ok); border-color:var(--ok); } .pill.bad { color:var(--bad); border-color:var(--bad); }
+  .list { border-top:1px solid var(--line); padding:12px 0; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+  .list:first-child { border-top:0; }
+  .small { color:var(--mut); font-size:13px; }
+  #msg { min-height:20px; color:var(--acc); font-size:14px; }
+  footer { color:var(--mut); font-size:12.5px; line-height:1.55; margin-top:36px; border-top:1px solid var(--line); padding-top:16px; }
+  a { color:var(--acc); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Agent<span class="g">Gate</span></h1>
+      <p class="tag">The front desk for Agent ID holders — daily check-ins &amp; allowlists on BNB Chain, keyed by your <b>name.ai</b>.</p>
+    </div>
+    <button id="connectBtn">Connect wallet</button>
+  </header>
+
+  <div class="grid">
+    <div class="card"><div class="n" id="statAgents">–</div><div class="l">Unique Agent ID addresses seen</div></div>
+    <div class="card"><div class="n" id="statCheckins">–</div><div class="l">Total check-ins</div></div>
+    <div class="card"><div class="n" id="statLists">–</div><div class="l">Allowlists created</div></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <b>Your desk</b>
+      <span id="agentPill" class="pill">wallet not connected</span>
+    </div>
+    <p class="small" id="yourStats">Connect a wallet that holds an Agent ID to check in. No Agent ID yet? Claim yours in the Binance App: Wallet → Agent ID banner.</p>
+    <div class="row">
+      <button id="checkinBtn" disabled>Check in today</button>
+      <span class="small">Free — you only pay the small BNB gas fee.</span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <b>Allowlists</b>
+    <p class="small">Lists that only Agent ID holders can create and join — a simple access-control primitive for drops, betas and communities.</p>
+    <div class="row">
+      <input type="text" id="listName" maxlength="64" placeholder="New list name (e.g. Early Agents)">
+      <button id="createListBtn" disabled>Create list</button>
+    </div>
+    <div id="lists" style="margin-top:8px"></div>
+  </div>
+
+  <p id="msg"></p>
+
+  <footer>
+    AgentGate is an independent project built for the Binance Wallet Agent ID Hackathon. It is not affiliated with Binance.
+    The AgentGate contract holds no funds and cannot move your assets; every action needs your own wallet confirmation.
+    Check-ins and list joins are free of charge apart from BNB network gas. Nothing here is financial advice, and no returns are promised.
+    Contract: <span id="contractLink">to be deployed</span> · Agent ID contract: 0x60b9262456de011f7d15a54cdd8c48baaa8b022f (BNB Chain)
+  </footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
